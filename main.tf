@@ -8,7 +8,7 @@ provider "tls" {
 
 resource "azurerm_resource_group" "main" {
     name     = var.resource_group_name
-    location = var.resource_group_location
+    location = var.location
 
     tags = {
         environment = var.environment
@@ -19,6 +19,7 @@ module "azure_network" {
     source       = "./modules/network"
     rg_location  = azurerm_resource_group.main.location
     rg_name      = azurerm_resource_group.main.name
+    noderg_name  = var.node_resource_group_name
     environment  = var.environment
     cluster_name = var.cluster_name
 }
@@ -42,7 +43,7 @@ resource "azurerm_kubernetes_cluster" "main" {
     location            = azurerm_resource_group.main.location
     resource_group_name = azurerm_resource_group.main.name
     dns_prefix          = var.dns_prefix
-    node_resource_group = "aks-noderg-${var.cluster_name}" #  https://github.com/Azure/AKS/issues/3
+    node_resource_group = var.node_resource_group_name #  https://github.com/Azure/AKS/issues/3
 
     linux_profile {
         admin_username = "ubuntu"
@@ -75,6 +76,31 @@ resource "azurerm_kubernetes_cluster" "main" {
     }
 }
 
+resource "null_resource" "save-kube-config" {
+    triggers = {
+        config = azurerm_kubernetes_cluster.main.kube_config_raw
+    }
+    provisioner "local-exec" {
+        command = <<EOT
+            mkdir -p ${path.module}/.kube && 
+            echo '${azurerm_kubernetes_cluster.main.kube_config_raw}' > ${path.module}/.kube/config && 
+            chmod 0600 ${path.module}/.kube/config
+        EOT
+    }
+ 
+    depends_on = [ azurerm_kubernetes_cluster.main ]
+}
+
+module "ingress" {
+    source = "./modules/services"
+    public_ip = module.azure_network.public_ip
+
+    host = azurerm_kubernetes_cluster.main.kube_config.0.host
+    client_certificate = azurerm_kubernetes_cluster.main.kube_config.0.client_certificate
+    client_key = azurerm_kubernetes_cluster.main.kube_config.0.client_key
+    cluster_ca_certificate = azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate
+}
+
 data "azurerm_subscription" "current" {}
 
 output "current_subscription_display_name" {
@@ -82,13 +108,13 @@ output "current_subscription_display_name" {
 }
 
 output "client_certificate" {
-  value = azurerm_kubernetes_cluster.main.kube_config.0.client_certificate
+    value = azurerm_kubernetes_cluster.main.kube_config.0.client_certificate
 }
 
 output "kube_config" {
-  value = azurerm_kubernetes_cluster.main.kube_config_raw
+    value = azurerm_kubernetes_cluster.main.kube_config_raw
 }
 
-output "subnets" {
-  value = module.azure_network.subnet_id
+output "public_ip" {
+    value = module.azure_network.public_ip
 }
