@@ -57,19 +57,19 @@ resource "azurerm_subnet_network_security_group_association" "current" {
   network_security_group_id = azurerm_network_security_group.current.id
 }
 
-# Public IP
-resource "azurerm_public_ip" "aks-public-ip" {
-  name = "aks-public-ip-${var.cluster_name}"
-  count = 1
-  resource_group_name = var.noderg_name
-  location = var.rg_location
-  allocation_method = "Static"
-}
+# # Public IP
+# resource "azurerm_public_ip" "aks-public-ip" {
+#   name = "aks-public-ip-${var.cluster_name}"
+#   count = 1
+#   resource_group_name = var.noderg_name
+#   location = var.rg_location
+#   allocation_method = "Static"
+# }
 
 output "subnet_id" {
   value = azurerm_subnet.internal.id
 }
 
-output "public_ip" {
-  value = length(azurerm_public_ip.aks-public-ip.*) == 1 ? azurerm_public_ip.aks-public-ip[0].ip_address : null
-}
+# output "public_ip" {
+#   value = length(azurerm_public_ip.aks-public-ip.*) == 1 ? azurerm_public_ip.aks-public-ip[0].ip_address : null
+# }

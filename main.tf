@@ -55,7 +55,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 
     agent_pool_profile {
         name            = "minimal"
-        count           = 1
+        count           = 2
         vm_size         = "Standard_B2s"
         os_type         = "Linux"
         os_disk_size_gb = 30
@@ -92,13 +92,8 @@ resource "null_resource" "save-kube-config" {
 }
 
 module "ingress" {
-    source = "./modules/services"
-    public_ip = module.azure_network.public_ip
-
-    host = azurerm_kubernetes_cluster.main.kube_config.0.host
-    client_certificate = azurerm_kubernetes_cluster.main.kube_config.0.client_certificate
-    client_key = azurerm_kubernetes_cluster.main.kube_config.0.client_key
-    cluster_ca_certificate = azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate
+    source = "./modules/ingress"
+    kubeconfig_path = "${path.module}/.kube/config"
 }
 
 data "azurerm_subscription" "current" {}
@@ -115,6 +110,6 @@ output "kube_config" {
     value = azurerm_kubernetes_cluster.main.kube_config_raw
 }
 
-output "public_ip" {
-    value = module.azure_network.public_ip
-}
+# output "public_ip" {
+#     value = module.azure_network.public_ip
+# }
